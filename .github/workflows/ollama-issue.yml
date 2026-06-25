@@ -13,12 +13,12 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
 
-      - name: Start Ollama server
+      - name: Start Ollama
         run: |
           nohup ollama serve > ollama.log 2>&1 &
           sleep 10
 
-      - name: Pull tiny model
+      - name: Pull model
         run: |
           ollama pull tinyllama
 
@@ -27,12 +27,12 @@ jobs:
           echo "TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
           echo "BODY=${{ github.event.issue.body }}" >> $GITHUB_ENV
 
-      - name: Ask AI
+      - name: Run AI
         run: |
           RESPONSE=$(ollama run tinyllama "You are a helpful coding assistant. Keep answers short.
 
-Issue Title: $TITLE
-Issue Body: $BODY")
+Title: $TITLE
+Body: $BODY")
 
           echo "RESPONSE<<EOF" >> $GITHUB_ENV
           echo "$RESPONSE" >> $GITHUB_ENV
@@ -44,4 +44,8 @@ Issue Body: $BODY")
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -d "{\"body\":\"🤖 AI Response:\n\n${RESPONSE}\"}"
+            -d @- <<EOF
+{
+  "body": "${RESPONSE}"
+}
+EOF
