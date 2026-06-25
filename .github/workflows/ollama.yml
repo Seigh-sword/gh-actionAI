@@ -16,7 +16,7 @@ jobs:
       - name: Start Ollama server
         run: |
           nohup ollama serve > ollama.log 2>&1 &
-          
+
           for i in {1..30}; do
             curl -s http://localhost:11434 > /dev/null && break
             echo "waiting for ollama..."
@@ -27,18 +27,26 @@ jobs:
         run: |
           ollama pull tinyllama
 
+      - name: Save issue safely
+        run: |
+          echo "${{ github.event.issue.title }}" > title.txt
+          echo "${{ github.event.issue.body }}" > body.txt
+
       - name: Run AI
         run: |
+          TITLE=$(cat title.txt)
+          BODY=$(cat body.txt)
+
           PROMPT="You are a helpful coding assistant. Keep answers short.
 
-Issue: ${{ github.event.issue.title }}
-${{ github.event.issue.body }}"
+Issue Title: $TITLE
+Issue Body: $BODY"
 
           ollama run tinyllama "$PROMPT" > response.txt
 
           cat response.txt
 
-      - name: Comment on issue
+      - name: Post comment
         run: |
           RESPONSE=$(cat response.txt | sed ':a;N;$!ba;s/\n/\\n/g')
 
