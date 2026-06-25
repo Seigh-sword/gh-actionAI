@@ -22,28 +22,26 @@ jobs:
         run: |
           ollama pull tinyllama
 
-      - name: Read issue
+      - name: Get issue data
         run: |
-          echo "TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
-          echo "BODY=${{ github.event.issue.body }}" >> $GITHUB_ENV
+          echo "${{ github.event.issue.title }}" > title.txt
+          echo "${{ github.event.issue.body }}" > body.txt
 
       - name: Run AI
         run: |
-          RESPONSE=$(ollama run tinyllama "You are a helpful coding assistant. Keep answers short.
+          PROMPT="You are a helpful coding assistant. Keep answers short.
 
-Title: $TITLE
-Body: $BODY")
+Title: $(cat title.txt)
+Body: $(cat body.txt)"
 
-          echo "RESPONSE<<EOF" >> $GITHUB_ENV
-          echo "$RESPONSE" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          ollama run tinyllama "$PROMPT" > response.txt
 
-      - name: Comment on issue
+      - name: Post comment
         run: |
-          RESPONSE_ESCAPED=$(echo "$RESPONSE" | sed ':a;N;$!ba;s/\n/\\n/g')
+          RESPONSE=$(cat response.txt | sed ':a;N;$!ba;s/\n/\\n/g')
 
           curl -s -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
-            -d "{\"body\":\"$RESPONSE_ESCAPED\"}"
+            -d "{\"body\":\"$RESPONSE\"}"
