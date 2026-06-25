@@ -13,30 +13,32 @@ jobs:
         run: |
           curl -fsSL https://ollama.com/install.sh | sh
 
-      - name: Start Ollama
+      - name: Start Ollama server
         run: |
           nohup ollama serve > ollama.log 2>&1 &
-          sleep 10
+          
+          for i in {1..30}; do
+            curl -s http://localhost:11434 > /dev/null && break
+            echo "waiting for ollama..."
+            sleep 1
+          done
 
       - name: Pull model
         run: |
           ollama pull tinyllama
 
-      - name: Get issue data
-        run: |
-          echo "${{ github.event.issue.title }}" > title.txt
-          echo "${{ github.event.issue.body }}" > body.txt
-
       - name: Run AI
         run: |
           PROMPT="You are a helpful coding assistant. Keep answers short.
 
-Title: $(cat title.txt)
-Body: $(cat body.txt)"
+Issue: ${{ github.event.issue.title }}
+${{ github.event.issue.body }}"
 
           ollama run tinyllama "$PROMPT" > response.txt
 
-      - name: Post comment
+          cat response.txt
+
+      - name: Comment on issue
         run: |
           RESPONSE=$(cat response.txt | sed ':a;N;$!ba;s/\n/\\n/g')
 
