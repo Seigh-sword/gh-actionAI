@@ -1,0 +1,47 @@
+name: Ollama Issue Bot
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  ai:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama server
+        run: |
+          nohup ollama serve > ollama.log 2>&1 &
+          sleep 10
+
+      - name: Pull tiny model
+        run: |
+          ollama pull tinyllama
+
+      - name: Read issue
+        run: |
+          echo "TITLE=${{ github.event.issue.title }}" >> $GITHUB_ENV
+          echo "BODY=${{ github.event.issue.body }}" >> $GITHUB_ENV
+
+      - name: Ask AI
+        run: |
+          RESPONSE=$(ollama run tinyllama "You are a helpful coding assistant. Keep answers short.
+
+Issue Title: $TITLE
+Issue Body: $BODY")
+
+          echo "RESPONSE<<EOF" >> $GITHUB_ENV
+          echo "$RESPONSE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Comment on issue
+        run: |
+          curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments \
+            -d "{\"body\":\"🤖 AI Response:\n\n${RESPONSE}\"}"
